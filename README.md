@@ -1,2 +1,2 @@
-# reti-lab-2020
+# RETI-LAB
 Network Programming Course exercises in Java
