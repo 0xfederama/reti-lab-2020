@@ -1,16 +1,17 @@
-import java.util.Vector;
-
 public class Computers {
 
-    private final int pcTesisti;
+    private final int[] computersTesisti; //0 non richiesto, 1 richiesto
     private final int[] computers; //0 libero, 1 occupato
-    private final Vector<String> utentiAttesa = new Vector<>();
+    private int nProf = 0;
 
-    public Computers(int pcTesisti) {
-        this.pcTesisti = pcTesisti;
+    public Computers() {
         this.computers = new int[20];
         for (int i=0; i<20; ++i) {
             computers[i]=0;
+        }
+        computersTesisti = new int[20];
+        for (int i=0; i<20; ++i) {
+            computersTesisti[i]=0;
         }
     }
 
@@ -22,34 +23,41 @@ public class Computers {
         return size;
     }
 
-    public synchronized int enterLab(String utente) throws InterruptedException {
+    private boolean pcStudDisp() {
+        boolean out = false;
+        for (int i = 0; i < 20; ++i) {
+            if (computers[i] == 0 && computersTesisti[i] == 0) {
+                out = true;
+                break;
+            }
+        }
+        return out;
+    }
+
+    public synchronized int enterLab(String utente, int pcTesista) throws InterruptedException {
         int nPC = -1;
         switch (utente) {
             case "Professore": {
+                nProf++;
                 while (pcEmpty()<20) {
-                    utentiAttesa.add(utente);
                     wait();
-                    utentiAttesa.remove(utente);
                 }
+                nProf--;
                 for (int i=0; i<20; ++i) {
                     computers[i] = 1;
                 }
                 break;
             }
             case "Tesista": {
-                while (computers[pcTesisti]==1 || utentiAttesa.contains("Professore")) {
-                    utentiAttesa.add(utente);
+                while (computers[pcTesista]==1 || nProf>0) {
                     wait();
-                    utentiAttesa.remove(utente);
                 }
-                computers[pcTesisti] = 1;
+                computers[pcTesista] = 1;
                 break;
             }
             case "Studente": {
-                while (pcEmpty()==0 || utentiAttesa.contains("Professore") || (pcEmpty()==1 && computers[pcTesisti]==0 && utentiAttesa.contains("Tesista"))) {
-                    utentiAttesa.add(utente);
+                while (pcEmpty()==0 || nProf>0 || !pcStudDisp()) {
                     wait();
-                    utentiAttesa.remove(utente);
                 }
                 for (int i=0; i<20; ++i) {
                     if (computers[i]==0) {
@@ -75,11 +83,7 @@ public class Computers {
                 notifyAll();
                 break;
             }
-            case "Tesista": {
-                computers[pcTesisti]=0;
-                notifyAll();
-                break;
-            }
+            case "Tesista":
             case "Studente": {
                 computers[nPC]=0;
                 notifyAll();
