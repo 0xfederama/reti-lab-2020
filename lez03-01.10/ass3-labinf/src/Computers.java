@@ -1,21 +1,25 @@
-import java.util.Vector;
 import java.util.concurrent.locks.*;
 
 public class Computers {
 
-    private final int pcTesisti;
     private final int[] computers; //0 libero, 1 occupato
+    private final int[] computersTesisti; //0 non richiesto, 1 richiesto
     private final Lock lockPC = new ReentrantLock();
     private final Condition condProf = lockPC.newCondition();
     private final Condition condTes = lockPC.newCondition();
     private final Condition condStud = lockPC.newCondition();
-    private final Vector<String> utentiAttesa = new Vector<>();
+    private int nProf = 0;
+    private int nTes = 0;
+    private int nStud = 0;
 
-    public Computers(int pcTesisti) {
-        this.pcTesisti = pcTesisti;
-        this.computers = new int[20];
+    public Computers() {
+        computers = new int[20];
         for (int i=0; i<20; ++i) {
             computers[i]=0;
+        }
+        computersTesisti = new int[20];
+        for (int i=0; i<20; ++i) {
+            computersTesisti[i]=0;
         }
     }
 
@@ -27,16 +31,27 @@ public class Computers {
         return size;
     }
 
-    public int enterLab(String utente) throws InterruptedException {
+    private boolean pcStudDisp() {
+        boolean out = false;
+        for (int i=0; i<20; ++i) {
+            if (computers[i]==0 && computersTesisti[i]==0) {
+                out=true;
+                break;
+            }
+        }
+        return out;
+    }
+
+    public int enterLab(String utente, int pcTesista) throws InterruptedException {
         int nPC = -1;
         switch (utente) {
             case "Professore": {
                 lockPC.lock();
+                nProf++;
                 while (pcEmpty()<20) {
-                    utentiAttesa.add(utente);
                     condProf.await();
-                    utentiAttesa.remove(utente);
                 }
+                nProf--;
                 for (int i=0; i<20; ++i) {
                     computers[i] = 1;
                 }
@@ -45,25 +60,27 @@ public class Computers {
             }
             case "Tesista": {
                 lockPC.lock();
-                while (computers[pcTesisti]==1 || utentiAttesa.contains("Professore")) {
-                    utentiAttesa.add(utente);
+                nTes++;
+                computersTesisti[pcTesista] = 1;
+                while (computers[pcTesista]==1 || nProf>0) {
                     condTes.await();
-                    utentiAttesa.remove(utente);
                 }
-                computers[pcTesisti] = 1;
+                nTes--;
+                computers[pcTesista] = 1;
+                nPC = pcTesista;
                 lockPC.unlock();
                 break;
             }
             case "Studente": {
                 lockPC.lock();
-                while (pcEmpty()==0 || utentiAttesa.contains("Professore") || (pcEmpty()==1 && computers[pcTesisti]==0 && utentiAttesa.contains("Tesista"))) {
-                    utentiAttesa.add(utente);
+                nStud++;
+                while (pcEmpty()==0 || nProf>0 || !pcStudDisp()) {
                     condStud.await();
-                    utentiAttesa.remove(utente);
                 }
+                nStud--;
                 for (int i=0; i<20; ++i) {
-                    if (computers[i]==0) {
-                        computers[i]=1;
+                    if (computers[i]==0 && computersTesisti[i]==0) {
+                        computers[i] = 1;
                         nPC=i;
                         break;
                     }
@@ -84,27 +101,21 @@ public class Computers {
                 for (int i = 0; i < 20; ++i) {
                     computers[i] = 0;
                 }
-                if (utentiAttesa.contains("Professore")) condProf.signalAll();
-                else if (utentiAttesa.contains("Tesista")) condTes.signalAll();
-                else if (utentiAttesa.contains("Studente")) condStud.signalAll();
+                if (nProf>0) condProf.signalAll();
+                else {
+                    if (nTes>0) condTes.signalAll();
+                    if (nStud>0) condStud.signalAll();
+                }
                 lockPC.unlock();
                 break;
             }
-            case "Tesista": {
-                lockPC.lock();
-                computers[pcTesisti]=0;
-                if (utentiAttesa.contains("Professore")) condProf.signalAll();
-                    else if (utentiAttesa.contains("Tesista")) condTes.signalAll();
-                    else if (utentiAttesa.contains("Studente")) condStud.signalAll();
-                lockPC.unlock();
-                break;
-            }
+            case "Tesista":
             case "Studente": {
                 lockPC.lock();
                 computers[nPC]=0;
-                if (utentiAttesa.contains("Professore")) condProf.signalAll();
-                    else if (utentiAttesa.contains("Tesista")) condTes.signalAll();
-                    else if (utentiAttesa.contains("Studente")) condStud.signalAll();
+                if (nProf>0) condProf.signalAll();
+                else if (nTes>0 && computersTesisti[nPC]==1) condTes.signalAll();
+                else if (nStud>0) condStud.signalAll();
                 lockPC.unlock();
                 break;
             }

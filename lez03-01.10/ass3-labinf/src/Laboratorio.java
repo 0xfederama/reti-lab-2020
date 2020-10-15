@@ -16,15 +16,14 @@ public class Laboratorio {
 
         int utentiTot = nProf + nTes + nStud;
 
-        //Scelgo un computer tra 1 e 20 che utilizzano i tesisti
-        int pcTesisti = 19;
         //Creo il laboratorio
-        Computers pc = new Computers(pcTesisti);
+        Computers pc = new Computers();
         //Creo la lista di thread utenti
         Vector<Thread> threadsUtente = new Vector<>(utentiTot);
 
-        //Avvio un prof/tesista/studente alla volta randomicamente
+        //Avvio un prof/tesista/studente alla volta
         System.out.println("Faccio entrare gli utenti");
+        final long startTime = System.nanoTime();
         int i=0;
         while (nProf>0 || nTes>0 || nStud>0) {
 
@@ -59,8 +58,11 @@ public class Laboratorio {
             threadsUtente.get(i).join();
         }
 
-        //Sono entrati tutti
-        System.out.println("Tutti gli utenti sono entrati e usciti, chiudo il laboratorio");
+        final long endTime = System.nanoTime();
+        long time = endTime-startTime;
+
+        //Sono entrati e usciti tutti
+        System.out.println("\nLaboratorio aperto per "+time+"ms.\nTutti gli utenti sono entrati e usciti, chiudo il laboratorio");
         
     }
 }
