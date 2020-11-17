@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.StringTokenizer;
 
 public class Server {
@@ -20,7 +22,7 @@ public class Server {
 
             String request = readFromClient.readLine();
             if (request==null) {
-                System.out.println("Nessuna richiesta");
+                System.out.println("Nessuna richiesta\n");
                 connSocket.close();
                 readFromClient.close();
                 outToClient.close();
@@ -36,13 +38,11 @@ public class Server {
                 String fileName = httpQuery.replaceFirst("/", "");
                 File file = new File(fileName);
 
-                String contentTypeLine = "Content-Type: \n";
-
                 if (!file.exists() || !file.isFile()) {
                     outToClient.writeBytes("HTTP/1.0 404 Not Found\n");
-                    String response = "ERROR 404 - File not found\n";
-                    outToClient.writeBytes(contentTypeLine);
-                    outToClient.writeBytes("Content-Length: "+response.length()+"\n");
+                    String response = "<h1> ERROR 404 </h1> <b> <h4> File not found </h4>\n";
+                    outToClient.writeBytes("Content-Type: text/html\n");
+                    outToClient.writeBytes("Content-Length: " + response.length() + "\n");
                     outToClient.writeBytes("Connection: close\n\n");
                     outToClient.writeBytes(response);
                     System.out.println("File non trovato\n");
@@ -51,6 +51,7 @@ public class Server {
 
                 FileInputStream fin = new FileInputStream(fileName);
                 String statusLine = "HTTP/1.0 200 OK\n";
+                String contentTypeLine = "Content-Type: " + Files.probeContentType(Path.of(fileName)) + "\n";
                 String contentLengthLine = "Content-Length: " + fin.available() + "\n";
                 outToClient.writeBytes(statusLine);
                 outToClient.writeBytes(contentTypeLine);
