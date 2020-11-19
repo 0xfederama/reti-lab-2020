@@ -15,7 +15,11 @@ public class Client {
 
         //Apro la connessione
         SocketAddress address = new InetSocketAddress("127.0.0.1", 9999);
-        SocketChannel client = SocketChannel.open(address);
+        SocketChannel server = SocketChannel.open(address);
+        ByteBuffer msgLen = ByteBuffer.allocate(4);
+        server.read(msgLen);
+        msgLen.flip();
+        int bufLen = Integer.parseInt(StandardCharsets.UTF_8.decode(msgLen).toString());
 
         while (true) {
 
@@ -23,30 +27,32 @@ public class Client {
 
             //Client legge la stringa da stdin
             String input;
+            int len;
             do {
-                System.out.print("Scrivere la stringa da inviare al server (massimo 128 caratteri): ");
+                System.out.print("Scrivere la stringa da inviare al server (massimo "+bufLen+" caratteri): ");
                 input = scanner.nextLine();
-                if (input.length() > 128) System.out.println("La stringa inserita e' troppo lunga");
-                if (input.length() == 0) System.out.println("Stringa vuota non ammessa");
-            } while (input.length() > 128 || input.length() == 0);
+                len = input.length();
+                if (len > bufLen) System.out.println("La stringa inserita e' troppo lunga");
+                if (len == 0) System.out.println("Stringa vuota non ammessa");
+            } while (len > bufLen || len == 0);
 
             if (input.equals("$exit") || input.equals("$quit")) break;
 
             //Client manda la stringa al server e stampa la risposta
             try {
                 //Scrivo in un buffer la stringa
-                ByteBuffer buffer = ByteBuffer.allocate(128);
+                ByteBuffer buffer = ByteBuffer.allocate(len);
                 buffer.clear();
                 buffer.put(input.getBytes());
                 buffer.flip();
 
                 //Invio il buffer al server
-                client.write(buffer);
+                server.write(buffer);
                 System.out.println("Client ha inviato la stringa \""+input+"\" al server");
 
                 //Leggo la risposta del server e chiudo la socket
-                ByteBuffer buffer2 = ByteBuffer.allocate(128+" - echoed by server\n".length());
-                client.read(buffer2);
+                ByteBuffer buffer2 = ByteBuffer.allocate(len+" - echoed by server\n".length());
+                server.read(buffer2);
                 buffer2.flip();
                 String s = "";
                 while (buffer2.hasRemaining()) {
@@ -58,7 +64,7 @@ public class Client {
             }
         }
 
-        client.close();
+        server.close();
         scanner.close();
 
     }
