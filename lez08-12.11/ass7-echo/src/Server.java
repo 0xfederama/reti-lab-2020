@@ -14,9 +14,9 @@ public class Server {
         Selector selector;
         try {
             serverChannel = ServerSocketChannel.open();
-            ServerSocket ss = serverChannel.socket();
+            ServerSocket serverSocket = serverChannel.socket();
             InetSocketAddress address = new InetSocketAddress(9999);
-            ss.bind(address);
+            serverSocket.bind(address);
             serverChannel.configureBlocking(false);
             selector = Selector.open();
             serverChannel.register(selector, SelectionKey.OP_ACCEPT);
@@ -40,31 +40,40 @@ public class Server {
             Iterator<SelectionKey> iterator = readyKeys.iterator();
 
             while (iterator.hasNext()) {
+
                 SelectionKey key = iterator.next();
                 iterator.remove();
+
                 try {
                     if (key.isAcceptable()) {
 
                         //Accetto la connessione
                         ServerSocketChannel server = (ServerSocketChannel) key.channel();
                         SocketChannel client = server.accept();
-                        System.out.println("Connessione accettata col client");
+                        System.out.println("\nConnessione accettata col client");
                         client.configureBlocking(false);
                         client.register(selector, SelectionKey.OP_READ);
 
                     } else if (key.isReadable()) {
 
-                        //Leggo dal client e scrivo la nuova stringa
+                        //Controllo che il client sia ancora attivo, altrimenti esco
                         System.out.println("Key e' readable");
                         SocketChannel client = (SocketChannel) key.channel();
-                        String risposta = " - echoed by server\n";
-                        ByteBuffer output = ByteBuffer.allocate(64+risposta.length());
+                        if (!client.isConnected()) {
+                            System.out.println("Connessione col client interrotta");
+                            key.cancel();
+                            client.close();
+                            break;
+                        }
+
                         //Leggo dal client e aggiungo la risposa del server
+                        String risposta = " - echoed by server\n";
+                        ByteBuffer output = ByteBuffer.allocate(128+risposta.length());
                         client.read(output);
                         output.put(risposta.getBytes());
                         output.flip();
-                        SelectionKey key1 = client.register(selector, SelectionKey.OP_WRITE);
-                        key1.attach(output);
+                        key.interestOps(SelectionKey.OP_WRITE);
+                        key.attach(output);
 
                     } else if (key.isWritable()) {
 
@@ -73,7 +82,7 @@ public class Server {
                         SocketChannel client = (SocketChannel) key.channel();
                         ByteBuffer input = (ByteBuffer) key.attachment();
                         client.write(input);
-                        client.close();
+                        key.interestOps(SelectionKey.OP_READ);
 
                     }
                 } catch (IOException e) {
@@ -83,44 +92,12 @@ public class Server {
                     } catch (IOException exc) {
                         exc.printStackTrace();
                     }
+                    System.out.println("Connessione col client interrotta");
                 }
+
             }
 
         }
 
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
