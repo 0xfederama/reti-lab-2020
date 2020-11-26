@@ -29,7 +29,7 @@ public class Client {
             String input;
             int len;
             do {
-                System.out.print("Scrivere la stringa da inviare al server (massimo "+bufLen+" caratteri): ");
+                System.out.print("Scrivere la stringa da inviare al server (massimo "+bufLen+" caratteri US-ASCII): ");
                 input = scanner.nextLine();
                 len = input.length();
                 if (len > bufLen) System.out.println("La stringa inserita e' troppo lunga");
@@ -43,7 +43,7 @@ public class Client {
                 //Scrivo in un buffer la stringa
                 ByteBuffer buffer = ByteBuffer.allocate(len);
                 buffer.clear();
-                buffer.put(input.getBytes());
+                buffer.put(input.getBytes(StandardCharsets.US_ASCII)); //Per evitare errori nel caso vengano usate altre codifiche
                 buffer.flip();
 
                 //Invio il buffer al server
